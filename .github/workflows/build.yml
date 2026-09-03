@@ -11,8 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - - name: Fix Claude model name
+      - name: Unzip project source
+        run: unzip -o src.zip -d .
+
+      - name: Fix Claude model name
         run: sed -i 's/claude-sonnet-4-6/claude-sonnet-5/' app/src/main/java/com/aria/companion/network/ClaudeClient.kt
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
