@@ -1,76 +1,74 @@
-package com.aria.companion.network
+name: Build Aria APK
 
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
-import java.io.IOException
-import java.util.concurrent.TimeUnit
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
 
-object ClaudeClient {
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
+      - name: Unzip project source
+        run: unzip -o src.zip -d .
 
-    private const val ENDPOINT = "https://api.anthropic.com/v1/messages"
-    private const val MODEL = "claude-sonnet-5"
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
 
-    fun send(
-        apiKey: String,
-        systemPrompt: String,
-        userMessage: String,
-        onResult: (String?) -> Unit
-    ) {
-        val body = JSONObject().apply {
-            put("model", MODEL)
-            put("max_tokens", 300)
-            put("system", systemPrompt)
-            put("messages", JSONArray().put(
-                JSONObject().put("role", "user").put("content", userMessage)
-            ))
-        }
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-        val req = Request.Builder()
-            .url(ENDPOINT)
-            .addHeader("x-api-key", apiKey)
-            .addHeader("anthropic-version", "2023-06-01")
-            .addHeader("content-type", "application/json")
-            .post(body.toString().toRequestBody("application/json".toMediaType()))
-            .build()
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
 
-        client.newCall(req).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                onResult("NETERR: ${e.javaClass.simpleName}: ${e.message}")
-            }
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon
 
-            override fun onResponse(call: Call, response: okhttp3.Response) {
-                response.use { resp ->
-                    val raw = resp.body?.string() ?: ""
-                    if (!resp.isSuccessful) {
-                        onResult("NETERR: HTTP ${resp.code} - ${raw.take(300)}")
-                        return
-                    }
-                    val json = JSONObject(raw)
-                    val content = json.optJSONArray("content") ?: JSONArray()
-                    val text = StringBuilder()
-                    for (i in 0 until content.length()) {
-                        val block = content.getJSONObject(i)
-                        if (block.optString("type") == "text") {
-                            text.append(block.optString("text"))
-                        }
-                    }
-                    onResult(text.toString().ifBlank { "NETERR: empty response body" })
-                }
-            }
-        })
-    }
-}      - name: Upload APK
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Aria-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apkname: Build Aria APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip project source
+        run: unzip -o src.zip -d .
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon
+
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Aria-debug-apk
